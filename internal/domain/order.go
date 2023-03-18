@@ -1,12 +1,14 @@
 package domain
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
 
 type OrderRepository interface {
-	Store(order Order)
+	Store(order Order) error
 	FindById(id string) Order
 }
 
@@ -17,18 +19,17 @@ const (
 )
 
 type OrderError struct {
-	Err error  // Error to bubble up and log somewhere
-	Msg string // Error to show to client
+	Err error
 }
 
-func (e *OrderError) Error() string {
+func (e OrderError) Error() string {
 	return e.Err.Error()
 }
 
 type Order struct {
 	id             string
 	products       []Product
-	productToCount map[Product]int
+	productToCount map[string]int
 	dispatchDate   string
 	status         OrderStatus
 }
@@ -37,7 +38,7 @@ func NewOrder(id string) Order {
 	return Order{
 		id:             id,
 		products:       make([]Product, 0),
-		productToCount: make(map[Product]int),
+		productToCount: make(map[string]int),
 	}
 }
 
@@ -54,7 +55,7 @@ func (order *Order) Value() float64 {
 	}
 
 	for _, product := range orderedProducts {
-		if product.category == Premium && order.productToCount[product] >= MinUniquePremProductsForDiscount {
+		if product.category == Premium && order.productToCount[product.id] >= MinUniquePremProductsForDiscount {
 			sum *= (1 - DiscountValueIfThreeUniquePremProducts)
 			break
 		}
@@ -65,14 +66,14 @@ func (order *Order) Value() float64 {
 
 func (order *Order) Add(product Product) error {
 	if !product.IsAvailable() {
-		return &OrderError{Msg: fmt.Sprintf("product: %s cannot be added to the order as it is not available", product.name)}
+		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it is not available", product.name)}
 	}
 
-	if order.productToCount[product] > MaxUniqueProductsPerOrder {
-		return &OrderError{Msg: fmt.Sprintf("product: %s cannot be added to the order as it exceeds the maximum allowed quantity per order, i.e., %d", product.name, MaxUniqueProductsPerOrder)}
+	if order.productToCount[product.id] > MaxUniqueProductsPerOrder {
+		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it exceeds the maximum allowed quantity per order, i.e., %d", product.name, MaxUniqueProductsPerOrder)}
 	}
 
-	order.productToCount[product] += 1
+	order.productToCount[product.id] += 1
 	order.products = append(order.products, product)
 
 	return nil
@@ -86,20 +87,22 @@ func (order *Order) Products() []Product {
 	return order.products
 }
 
-func (order *Order) ProductToCount() map[Product]int {
+func (order *Order) ProductToCount() map[string]int {
 	return order.productToCount
 }
 
 func (order *Order) SetDispatchDate(dateString string) error {
 	if order.status != OrderDispatched {
-		return &OrderError{Msg: "cannot set the dispatch date as order is not yet disptached"}
+		return &OrderError{Err: errors.New("cannot set the dispatch date as order is not yet dispatched")}
 	}
 	date, err := time.Parse("2006-01-02", dateString)
 	if err != nil {
-		return &OrderError{Err: err, Msg: "invalid dispatch date format. please provide the correct date"}
+		fmt.Println(err)
+		return &OrderError{Err: errors.New("invalid dispatch date format. please provide the correct date")}
 	}
 	if !date.After(time.Now()) {
-		return &OrderError{Err: err, Msg: "dispatch date must be after the current date"}
+		fmt.Println(err)
+		return &OrderError{Err: errors.New("dispatch date must be after the current date")}
 	}
 	order.dispatchDate = dateString
 	return nil
@@ -115,4 +118,44 @@ func (order *Order) SetOrderStatus(status OrderStatus) {
 
 func (order *Order) GetOrderStatus() OrderStatus {
 	return order.status
+}
+
+func (order *Order) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(struct {
+		Id             string
+		Products       []Product
+		ProductToCount map[string]int
+		DispatchDate   string
+		Status         OrderStatus
+	}{
+		Id:             order.id,
+		Products:       order.products,
+		ProductToCount: order.productToCount,
+		DispatchDate:   order.dispatchDate,
+		Status:         order.status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (order *Order) UnmarshalJSON(data []byte) error {
+	type ord struct {
+		Id             string         `json:"id"`
+		Products       []Product      `json:"products"`
+		ProductToCount map[string]int `json:"products_to_count"`
+		DispatchDate   string         `json:"dispatch_date"`
+		Status         OrderStatus    `json:"status"`
+	}
+	o := &ord{}
+	if err := json.Unmarshal(data, o); err != nil {
+		return err
+	}
+	order.id = o.Id
+	order.dispatchDate = o.DispatchDate
+	order.productToCount = o.ProductToCount
+	order.products = o.Products
+	order.status = o.Status
+	return nil
 }

@@ -1,7 +1,9 @@
 package domain
 
+import "encoding/json"
+
 type ProductRepository interface {
-	Store(product Product)
+	Store(product Product) error
 	FindById(id string) Product
 	GetAll() []Product // Ideally this API should return paginated results, but for the sake of simplicity, we will be returning all results, assuming results are not many
 }
@@ -52,4 +54,24 @@ func (product *Product) DecreaseStockBy(decreaseBy int) {
 
 func (product *Product) IsAvailable() bool {
 	return product.sku > 0
+}
+
+func (product *Product) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(struct {
+		Id       string
+		Name     string
+		Price    float64
+		Sku      int
+		Category ProductCategory
+	}{
+		Id:       product.id,
+		Name:     product.name,
+		Price:    product.price,
+		Sku:      product.sku,
+		Category: product.category,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

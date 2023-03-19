@@ -130,7 +130,7 @@ func (handler UpdateOrderHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	res := serializer.Response{}
-	res.Meta = serializer.Meta{}
+	res.Meta = &serializer.Meta{}
 	res.Meta.Errors = []serializer.ErrorInfo{}
 
 	var errorInfo serializer.ErrorInfo

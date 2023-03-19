@@ -10,6 +10,8 @@ type Product struct {
 	Name     string  `json:"name"`
 	Category string  `json:"category"`
 	Price    float64 `json:"price"`
+	SKU      int     `json:"sku,omitempty"`
+	Quantity int     `json:"quantity,omitempty"`
 }
 
 type ProductInteractor struct {
@@ -39,9 +41,16 @@ func (interactor *ProductInteractor) GetAll() []Product {
 	if len(productsFromDb) == 0 {
 		return []Product{}
 	}
-	products := make([]Product, len(productsFromDb))
-	for idx, product := range productsFromDb {
-		products[idx] = Product{ID: product.ID(), Name: product.Name(), Category: string(product.Category()), Price: product.Price()}
+	products := make([]Product, 0)
+	for _, product := range productsFromDb {
+		if product.SKU() > 0 {
+			products = append(products, Product{ID: product.ID(),
+				Name:     product.Name(),
+				Category: string(product.Category()),
+				Price:    product.Price(),
+				SKU:      product.SKU(),
+			})
+		}
 	}
 	return products
 }

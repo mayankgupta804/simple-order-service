@@ -26,6 +26,10 @@ func NewProduct(id string, name string, price float64, sku int, category Product
 	}
 }
 
+func (product *Product) SKU() int {
+	return product.sku
+}
+
 func (product *Product) Name() string {
 	return product.name
 }

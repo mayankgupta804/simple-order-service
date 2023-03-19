@@ -23,6 +23,7 @@ func NewOrderInteractor(orderRepo domain.OrderRepository, productRepo domain.Pro
 	return &OrderInteractor{orderRepository: orderRepo, productRepository: productRepo}
 }
 
+// TODO: Refactor after writing the deduplication of products in the domain.Orders.Add()
 func (interactor *OrderInteractor) Products(orderId string) ([]Product, error) {
 	order := interactor.orderRepository.FindById(orderId)
 	orderedProducts := order.Products()
@@ -30,9 +31,25 @@ func (interactor *OrderInteractor) Products(orderId string) ([]Product, error) {
 		return nil, errors.New("order does not exist. no products found in the order")
 	}
 
-	products := make([]Product, order.ProductQuantity())
-	for idx, product := range orderedProducts {
-		products[idx] = Product{ID: product.ID(), Name: product.Name(), Category: string(product.Category()), Price: product.Price()}
+	products := make([]Product, 0)
+	seenProducts := make(map[string]bool)
+	productToCount := make(map[Product]int)
+
+	for _, product := range orderedProducts {
+		prod := Product{ID: product.ID(), Name: product.Name(), Category: string(product.Category()), Price: product.Price()}
+		if seenProducts[product.ID()] {
+			productToCount[prod] += 1
+			continue
+		}
+		seenProducts[product.ID()] = true
+		productToCount[prod] += 1
+	}
+
+	for product, count := range productToCount {
+		if count > 0 {
+			product.Quantity = count
+			products = append(products, product)
+		}
 	}
 	return products, nil
 }
@@ -43,6 +60,12 @@ func (interactor *OrderInteractor) Add(orderId, productId string) error {
 	if order.ID() == "" {
 		order = domain.NewOrder(orderId)
 	}
+
+	orderStatus := order.GetOrderStatus()
+	if orderStatus == domain.OrderCompleted || orderStatus == domain.OrderCancelled || orderStatus == domain.OrderDispatched {
+		return fmt.Errorf("order has already been %s", orderStatus)
+	}
+
 	if domainErr := order.Add(product); domainErr != nil {
 		message := "Could not add item #%s "
 		message += "to order #%s "
@@ -58,26 +81,32 @@ func (interactor *OrderInteractor) Add(orderId, productId string) error {
 	return nil
 }
 
+// TODO: Always check previous status; status can only move forwards, i.e., placed -> dispatched or cancelled -> completed
 func (interactor *OrderInteractor) UpdateOrderStatus(orderId string, status domain.OrderStatus) error {
-	// TODO: Always check previous status; status can only move forwards, i.e., placed -> dispatched -> completed
 	orderStatusMap := map[domain.OrderStatus]bool{
 		domain.OrderDispatched: true,
 		domain.OrderPlaced:     true,
 		domain.OrderCompleted:  true,
+		domain.OrderCancelled:  true,
 	}
 	_, ok := orderStatusMap[status]
 	if !ok {
-		return errors.New("invalid order status. the different order status values are: 'placed', 'dispatched', 'completed'")
+		return errors.New(`invalid order status. the different order status values are: 
+							'placed', 'dispatched', 'cancelled' and 'completed'`)
 	}
 
 	order := interactor.orderRepository.FindById(orderId)
+	orderStatus := order.GetOrderStatus()
+	if orderStatus == domain.OrderCancelled || orderStatus == domain.OrderDispatched {
+		return fmt.Errorf("cannot update order status as order has been %s", orderStatus)
+	}
 
 	if order.ID() == "" {
 		return errors.New("cannot update order status for a non-existent order")
 	}
 
 	if status == domain.OrderPlaced {
-		for productId, _ := range order.ProductToCount() {
+		for productId := range order.ProductToCount() {
 			product := interactor.productRepository.FindById(productId)
 			product.DecreaseStockBy(1)
 			interactor.productRepository.Store(product)
@@ -95,6 +124,12 @@ func (interactor *OrderInteractor) UpdateDispatchDate(orderId, date string) erro
 	if order.ID() == "" {
 		return errors.New("cannot update dispatch date for a non-existent order")
 	}
+
+	orderStatus := order.GetOrderStatus()
+	if orderStatus == domain.OrderCompleted || orderStatus == domain.OrderCancelled {
+		return fmt.Errorf("cannot update dispatch date as order has been %s", orderStatus)
+	}
+
 	if domainErr := order.SetDispatchDate(date); domainErr != nil {
 		message = "Could not update dispatch date: #%s "
 		message += "of order #%s "

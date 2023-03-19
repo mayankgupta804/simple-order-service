@@ -6,7 +6,7 @@ type Response struct {
 	Status  string `json:"status,omitempty"`
 	Message string `json:"message,omitempty"`
 	Code    string `json:"code,omitempty"`
-	Meta    Meta   `json:"meta,omitempty"`
+	Meta    *Meta  `json:"meta,omitempty"`
 }
 
 type Meta struct {

@@ -67,6 +67,8 @@ func (order *Order) Value() float64 {
 	return sum
 }
 
+// TODO: While adding if an existing product, increase the quantity of the product in the order
+// rather than adding it to the order
 func (order *Order) Add(product Product) error {
 	if !product.IsAvailable() {
 		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it is not available", product.name)}

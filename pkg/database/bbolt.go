@@ -51,19 +51,11 @@ func (db *DB) GetAll(schema []byte) [][]byte {
 		if b == nil {
 			return errors.New("bucket does not exist")
 		}
-		c := b.Cursor()
-		_, val := c.First()
-		if val == nil {
-			return nil
-		}
-		vals = append(vals, val)
-		for {
-			_, v := c.Next()
-			if v == nil {
-				return nil
-			}
+		b.ForEach(func(_, v []byte) error {
 			vals = append(vals, v)
-		}
+			return nil
+		})
+		return nil
 	})
 	return vals
 }

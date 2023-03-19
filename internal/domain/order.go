@@ -97,11 +97,9 @@ func (order *Order) SetDispatchDate(dateString string) error {
 	}
 	date, err := time.Parse("2006-01-02", dateString)
 	if err != nil {
-		fmt.Println(err)
 		return &OrderError{Err: errors.New("invalid dispatch date format. please provide the correct date")}
 	}
 	if !date.After(time.Now()) {
-		fmt.Println(err)
 		return &OrderError{Err: errors.New("dispatch date must be after the current date")}
 	}
 	order.dispatchDate = dateString
@@ -122,11 +120,11 @@ func (order *Order) GetOrderStatus() OrderStatus {
 
 func (order *Order) MarshalJSON() ([]byte, error) {
 	data, err := json.Marshal(struct {
-		Id             string
-		Products       []Product
-		ProductToCount map[string]int
-		DispatchDate   string
-		Status         OrderStatus
+		Id             string         `json:"id"`
+		Products       []Product      `json:"products"`
+		ProductToCount map[string]int `json:"product_to_count"`
+		DispatchDate   string         `json:"dispatch_date"`
+		Status         OrderStatus    `json:"status"`
 	}{
 		Id:             order.id,
 		Products:       order.products,
@@ -144,7 +142,7 @@ func (order *Order) UnmarshalJSON(data []byte) error {
 	type ord struct {
 		Id             string         `json:"id"`
 		Products       []Product      `json:"products"`
-		ProductToCount map[string]int `json:"products_to_count"`
+		ProductToCount map[string]int `json:"product_to_count"`
 		DispatchDate   string         `json:"dispatch_date"`
 		Status         OrderStatus    `json:"status"`
 	}

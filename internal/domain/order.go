@@ -10,6 +10,7 @@ import (
 type OrderRepository interface {
 	Store(order Order) error
 	FindById(id string) Order
+	GetAll() []Order // Ideally this API should return paginated results, but for the sake of simplicity, we will be returning all results, assuming results are not many
 }
 
 const (

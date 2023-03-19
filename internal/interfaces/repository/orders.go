@@ -29,3 +29,17 @@ func (ordRepo ordersRepo) FindById(id string) domain.Order {
 	order.UnmarshalJSON(data)
 	return *order
 }
+
+func (ordRepo ordersRepo) GetAll() []domain.Order {
+	data := ordRepo.dbClient.GetAll([]byte(OrdersSchema))
+	if len(data) == 0 {
+		return []domain.Order{}
+	}
+	orders := make([]domain.Order, len(data))
+	for idx, val := range data {
+		order := &domain.Order{}
+		order.UnmarshalJSON(val)
+		orders[idx] = *order
+	}
+	return orders
+}

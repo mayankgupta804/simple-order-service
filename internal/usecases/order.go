@@ -11,6 +11,13 @@ type OrderInteractor struct {
 	productRepository domain.ProductRepository
 }
 
+type Order struct {
+	ID               string `json:"id"`
+	ProductsQuantity int    `json:"products_quantity"`
+	DispatchDate     string `json:"dispatch_date,omitempty"`
+	Status           string `json:"status,omitempty"`
+}
+
 func NewOrderInteractor(orderRepo domain.OrderRepository, productRepo domain.ProductRepository) *OrderInteractor {
 	return &OrderInteractor{orderRepository: orderRepo, productRepository: productRepo}
 }
@@ -50,8 +57,17 @@ func (interactor *OrderInteractor) Add(orderId, productId string) error {
 }
 
 func (interactor *OrderInteractor) UpdateOrderStatus(orderId string, status domain.OrderStatus) error {
-	// TODO: Also validate status
 	// TODO: Always check previous status; status can only move forwards, i.e., placed -> dispatched -> completed
+	orderStatusMap := map[domain.OrderStatus]bool{
+		domain.OrderDispatched: true,
+		domain.OrderPlaced:     true,
+		domain.OrderCompleted:  true,
+	}
+	_, ok := orderStatusMap[status]
+	if !ok {
+		return errors.New("invalid order status. the different order status values are: 'placed', 'dispatched', 'completed'")
+	}
+
 	order := interactor.orderRepository.FindById(orderId)
 
 	if order.ID() == "" {
@@ -89,4 +105,30 @@ func (interactor *OrderInteractor) UpdateDispatchDate(orderId, date string) erro
 	}
 	interactor.orderRepository.Store(order)
 	return nil
+}
+
+func (interactor *OrderInteractor) GetDetails(orderId string) (Order, error) {
+	domainOrder := interactor.orderRepository.FindById(orderId)
+	if domainOrder.ID() == "" {
+		return Order{}, errors.New("order does not exist")
+	}
+	order := Order{
+		ID:               domainOrder.ID(),
+		ProductsQuantity: domainOrder.ProductQuantity(),
+		DispatchDate:     domainOrder.GetDispatchDate(),
+		Status:           string(domainOrder.GetOrderStatus()),
+	}
+	return order, nil
+}
+
+func (interactor *OrderInteractor) GetAll() []Order {
+	ordersFromDb := interactor.orderRepository.GetAll()
+	if len(ordersFromDb) == 0 {
+		return []Order{}
+	}
+	orders := make([]Order, len(ordersFromDb))
+	for idx, order := range ordersFromDb {
+		orders[idx] = Order{ID: order.ID(), ProductsQuantity: order.ProductQuantity(), DispatchDate: order.GetDispatchDate(), Status: string(order.GetOrderStatus())}
+	}
+	return orders
 }

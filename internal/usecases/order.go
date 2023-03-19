@@ -12,10 +12,11 @@ type OrderInteractor struct {
 }
 
 type Order struct {
-	ID               string `json:"id"`
-	ProductsQuantity int    `json:"products_quantity"`
-	DispatchDate     string `json:"dispatch_date,omitempty"`
-	Status           string `json:"status,omitempty"`
+	ID               string  `json:"id"`
+	ProductsQuantity int     `json:"products_quantity"`
+	DispatchDate     string  `json:"dispatch_date,omitempty"`
+	Status           string  `json:"status,omitempty"`
+	Value            float64 `json:"value,omitempty"`
 }
 
 func NewOrderInteractor(orderRepo domain.OrderRepository, productRepo domain.ProductRepository) *OrderInteractor {
@@ -25,11 +26,11 @@ func NewOrderInteractor(orderRepo domain.OrderRepository, productRepo domain.Pro
 func (interactor *OrderInteractor) Products(orderId string) ([]Product, error) {
 	order := interactor.orderRepository.FindById(orderId)
 	orderedProducts := order.Products()
-	if len(orderedProducts) == 0 {
+	if order.ProductQuantity() == 0 {
 		return nil, errors.New("order does not exist. no products found in the order")
 	}
 
-	products := make([]Product, len(orderedProducts))
+	products := make([]Product, order.ProductQuantity())
 	for idx, product := range orderedProducts {
 		products[idx] = Product{ID: product.ID(), Name: product.Name(), Category: string(product.Category()), Price: product.Price()}
 	}
@@ -53,6 +54,7 @@ func (interactor *OrderInteractor) Add(orderId, productId string) error {
 		return err
 	}
 	interactor.orderRepository.Store(order)
+	interactor.UpdateOrderStatus(orderId, domain.OrderPlaced)
 	return nil
 }
 
@@ -75,9 +77,9 @@ func (interactor *OrderInteractor) UpdateOrderStatus(orderId string, status doma
 	}
 
 	if status == domain.OrderPlaced {
-		for productId, count := range order.ProductToCount() {
+		for productId, _ := range order.ProductToCount() {
 			product := interactor.productRepository.FindById(productId)
-			product.DecreaseStockBy(count)
+			product.DecreaseStockBy(1)
 			interactor.productRepository.Store(product)
 		}
 	}
@@ -117,6 +119,7 @@ func (interactor *OrderInteractor) GetDetails(orderId string) (Order, error) {
 		ProductsQuantity: domainOrder.ProductQuantity(),
 		DispatchDate:     domainOrder.GetDispatchDate(),
 		Status:           string(domainOrder.GetOrderStatus()),
+		Value:            domainOrder.Value(),
 	}
 	return order, nil
 }
@@ -128,7 +131,12 @@ func (interactor *OrderInteractor) GetAll() []Order {
 	}
 	orders := make([]Order, len(ordersFromDb))
 	for idx, order := range ordersFromDb {
-		orders[idx] = Order{ID: order.ID(), ProductsQuantity: order.ProductQuantity(), DispatchDate: order.GetDispatchDate(), Status: string(order.GetOrderStatus())}
+		orders[idx] = Order{
+			ID:               order.ID(),
+			ProductsQuantity: order.ProductQuantity(),
+			DispatchDate:     order.GetDispatchDate(),
+			Status:           string(order.GetOrderStatus()),
+			Value:            order.Value()}
 	}
 	return orders
 }

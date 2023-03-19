@@ -50,16 +50,18 @@ func (order *Order) ID() string {
 func (order *Order) Value() float64 {
 	sum := 0.0
 	orderedProducts := order.products
+	uniquePremiumProductsCounts := 0
+	seenUniqueProducts := make(map[string]bool)
 
 	for _, product := range orderedProducts {
 		sum += product.price
-	}
-
-	for _, product := range orderedProducts {
-		if product.category == Premium && order.productToCount[product.id] >= MinUniquePremProductsForDiscount {
-			sum *= (1 - DiscountValueIfThreeUniquePremProducts)
-			break
+		if product.category == Premium && !seenUniqueProducts[product.id] {
+			seenUniqueProducts[product.id] = true
+			uniquePremiumProductsCounts += 1
 		}
+	}
+	if uniquePremiumProductsCounts == 3 {
+		sum *= (1 - DiscountValueIfThreeUniquePremProducts)
 	}
 
 	return sum
@@ -70,11 +72,13 @@ func (order *Order) Add(product Product) error {
 		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it is not available", product.name)}
 	}
 
+	order.productToCount[product.id] += 1
+
 	if order.productToCount[product.id] > MaxUniqueProductsPerOrder {
+		order.productToCount[product.id] -= 1
 		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it exceeds the maximum allowed quantity per order, i.e., %d", product.name, MaxUniqueProductsPerOrder)}
 	}
 
-	order.productToCount[product.id] += 1
 	order.products = append(order.products, product)
 
 	return nil

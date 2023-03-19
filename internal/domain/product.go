@@ -75,3 +75,24 @@ func (product *Product) MarshalJSON() ([]byte, error) {
 	}
 	return data, nil
 }
+
+func (product *Product) UnmarshalJSON(data []byte) error {
+	type prod struct {
+		Id       string          `json:"id"`
+		Name     string          `json:"name"`
+		Price    float64         `json:"price"`
+		Sku      int             `json:"sku"`
+		Category ProductCategory `json:"category"`
+	}
+	p := &prod{}
+	if err := json.Unmarshal(data, p); err != nil {
+		return err
+	}
+
+	product.id = p.Id
+	product.name = p.Name
+	product.price = p.Price
+	product.sku = p.Sku
+	product.category = p.Category
+	return nil
+}

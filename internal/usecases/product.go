@@ -20,10 +20,16 @@ func NewProductInteractor(productRepo domain.ProductRepository) *ProductInteract
 	return &ProductInteractor{productRepository: productRepo}
 }
 
-func (interactor *ProductInteractor) GetDetails(productID string) (domain.Product, error) {
-	product := interactor.productRepository.FindById(productID)
-	if product.ID() == "" {
-		return domain.Product{}, errors.New("product does not exist")
+func (interactor *ProductInteractor) GetDetails(productID string) (Product, error) {
+	domainProduct := interactor.productRepository.FindById(productID)
+	if domainProduct.ID() == "" {
+		return Product{}, errors.New("product does not exist")
+	}
+	product := Product{
+		ID:       domainProduct.ID(),
+		Name:     domainProduct.Name(),
+		Category: string(domainProduct.Category()),
+		Price:    domainProduct.Price(),
 	}
 	return product, nil
 }

@@ -18,6 +18,7 @@ func SetupRoutes(orderInteractor OrderInteractor, productInteractor ProductInter
 		io.WriteString(w, str)
 	}).Methods(http.MethodGet)
 	router.Handle("/orders", NewGetAllOrdersHandler(orderInteractor)).Methods(http.MethodGet)
+	router.Handle("/orders/{id}", NewGetOrderDetailsHandler(orderInteractor)).Methods(http.MethodGet)
 	router.Handle("/orders/{id}", NewUpdateOrderHandler(orderInteractor)).Methods(http.MethodPut)
 	router.Handle("/orders/{id}/products", NewAddProductToOrderHandler(orderInteractor)).Methods(http.MethodPost)
 	router.Handle("/orders/{id}/products", NewGetAllOrderedProductsHandler(orderInteractor)).Methods(http.MethodGet)

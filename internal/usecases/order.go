@@ -12,11 +12,12 @@ type OrderInteractor struct {
 }
 
 type Order struct {
-	ID               string  `json:"id"`
-	ProductsQuantity int     `json:"products_quantity"`
-	DispatchDate     string  `json:"dispatch_date,omitempty"`
-	Status           string  `json:"status,omitempty"`
-	Value            float64 `json:"value,omitempty"`
+	ID            string    `json:"id"`
+	TotalQuantity int       `json:"total_quantity"`
+	Products      []Product `json:"products"`
+	DispatchDate  string    `json:"dispatch_date,omitempty"`
+	Status        string    `json:"status,omitempty"`
+	Value         float64   `json:"value,omitempty"`
 }
 
 func NewOrderInteractor(orderRepo domain.OrderRepository, productRepo domain.ProductRepository) *OrderInteractor {
@@ -150,11 +151,12 @@ func (interactor *OrderInteractor) GetDetails(orderId string) (Order, error) {
 		return Order{}, errors.New("order does not exist")
 	}
 	order := Order{
-		ID:               domainOrder.ID(),
-		ProductsQuantity: domainOrder.ProductQuantity(),
-		DispatchDate:     domainOrder.GetDispatchDate(),
-		Status:           string(domainOrder.GetOrderStatus()),
-		Value:            domainOrder.Value(),
+		ID:            domainOrder.ID(),
+		TotalQuantity: domainOrder.ProductQuantity(),
+		DispatchDate:  domainOrder.GetDispatchDate(),
+		Status:        string(domainOrder.GetOrderStatus()),
+		Value:         domainOrder.Value(),
+		Products:      getDeduplicatedProductsWithCount(domainOrder.Products()),
 	}
 	return order, nil
 }
@@ -167,11 +169,32 @@ func (interactor *OrderInteractor) GetAll() []Order {
 	orders := make([]Order, len(ordersFromDb))
 	for idx, order := range ordersFromDb {
 		orders[idx] = Order{
-			ID:               order.ID(),
-			ProductsQuantity: order.ProductQuantity(),
-			DispatchDate:     order.GetDispatchDate(),
-			Status:           string(order.GetOrderStatus()),
-			Value:            order.Value()}
+			ID:            order.ID(),
+			TotalQuantity: order.ProductQuantity(),
+			DispatchDate:  order.GetDispatchDate(),
+			Status:        string(order.GetOrderStatus()),
+			Value:         order.Value(),
+			Products:      getDeduplicatedProductsWithCount(order.Products()),
+		}
 	}
 	return orders
+}
+
+func getDeduplicatedProductsWithCount(products []domain.Product) []Product {
+	productToCount := make(map[domain.Product]int)
+	for _, product := range products {
+		productToCount[product] += 1
+	}
+	deduplicatedProducts := make([]Product, 0)
+	for product, count := range productToCount {
+		p := Product{
+			ID:       product.ID(),
+			Name:     product.Name(),
+			Category: string(product.Category()),
+			Price:    product.Price(),
+			Quantity: count,
+		}
+		deduplicatedProducts = append(deduplicatedProducts, p)
+	}
+	return deduplicatedProducts
 }

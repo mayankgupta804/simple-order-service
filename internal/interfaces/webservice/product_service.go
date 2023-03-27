@@ -48,7 +48,17 @@ func (handler GetProductDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http
 		return
 	}
 
-	responseJSON, _ := json.Marshal(productDetails)
+	responseJSON, err := json.Marshal(productDetails)
+	if err != nil {
+		log.Println(err.Error())
+		failureResponse := serializer.Response{
+			Status:  "error",
+			Message: err.Error(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(failureResponse.ToJSON())
+		return
+	}
 
 	w.Write(responseJSON)
 }
@@ -58,7 +68,17 @@ func (handler GetAllProductsHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 	products := handler.productInteractor.GetAll()
 
-	responseJSON, _ := json.Marshal(products)
+	responseJSON, err := json.Marshal(products)
+	if err != nil {
+		log.Println(err.Error())
+		failureResponse := serializer.Response{
+			Status:  "error",
+			Message: err.Error(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(failureResponse.ToJSON())
+		return
+	}
 
 	w.Write(responseJSON)
 }

@@ -79,7 +79,17 @@ func (handler GetOrderDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	responseJSON, _ := json.Marshal(orderDetails)
+	responseJSON, err := json.Marshal(orderDetails)
+	if err != nil {
+		log.Println(err.Error())
+		failureResponse := serializer.Response{
+			Status:  "error",
+			Message: err.Error(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(failureResponse.ToJSON())
+		return
+	}
 
 	w.Write(responseJSON)
 }
@@ -102,7 +112,17 @@ func (handler GetAllOrderedProductsHandler) ServeHTTP(w http.ResponseWriter, r *
 		return
 	}
 
-	responseJSON, _ := json.Marshal(orders)
+	responseJSON, err := json.Marshal(orders)
+	if err != nil {
+		log.Println(err.Error())
+		failureResponse := serializer.Response{
+			Status:  "error",
+			Message: err.Error(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(failureResponse.ToJSON())
+		return
+	}
 
 	w.Write(responseJSON)
 }
@@ -239,7 +259,18 @@ func (handler GetAllOrdersHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 	orders := handler.orderInteractor.GetAll()
 
-	responseJSON, _ := json.Marshal(orders)
+	responseJSON, err := json.Marshal(orders)
+
+	if err != nil {
+		log.Println(err.Error())
+		failureResponse := serializer.Response{
+			Status:  "error",
+			Message: err.Error(),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(failureResponse.ToJSON())
+		return
+	}
 
 	w.Write(responseJSON)
 }

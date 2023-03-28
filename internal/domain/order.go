@@ -19,6 +19,12 @@ const (
 	DiscountValueIfThreeUniquePremProducts float64 = 0.1
 )
 
+var (
+	ErrInvalidDispatchDateWithOrderNotDispatched = errors.New("cannot set the dispatch date as order is not yet dispatched")
+	ErrInvalidDispatchDateFormat                 = errors.New("invalid dispatch date format. please provide the correct date")
+	ErrInvalidDispatchDate                       = errors.New("dispatch date must be after the current date")
+)
+
 type OrderError struct {
 	Err error
 }
@@ -100,14 +106,14 @@ func (order *Order) ProductToCount() map[string]int {
 
 func (order *Order) SetDispatchDate(dateString string) error {
 	if order.status != OrderDispatched {
-		return &OrderError{Err: errors.New("cannot set the dispatch date as order is not yet dispatched")}
+		return &OrderError{Err: ErrInvalidDispatchDateWithOrderNotDispatched}
 	}
 	date, err := time.Parse("2006-01-02", dateString)
 	if err != nil {
-		return &OrderError{Err: errors.New("invalid dispatch date format. please provide the correct date")}
+		return &OrderError{Err: ErrInvalidDispatchDateFormat}
 	}
 	if !date.After(time.Now()) {
-		return &OrderError{Err: errors.New("dispatch date must be after the current date")}
+		return &OrderError{Err: ErrInvalidDispatchDate}
 	}
 	order.dispatchDate = dateString
 	return nil

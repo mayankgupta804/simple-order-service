@@ -23,6 +23,13 @@ var (
 	ErrInvalidDispatchDateWithOrderNotDispatched = errors.New("cannot set the dispatch date as order is not yet dispatched")
 	ErrInvalidDispatchDateFormat                 = errors.New("invalid dispatch date format. please provide the correct date")
 	ErrInvalidDispatchDate                       = errors.New("dispatch date must be after the current date")
+
+	ErrUnavailableProduct = func(name string) error {
+		return fmt.Errorf("product: %s cannot be added to the order as it is not available", name)
+	}
+	ErrMaxAllowedQuantity = func(name string) error {
+		return fmt.Errorf("product: %s cannot be added to the order as it exceeds the maximum allowed quantity per order, i.e., %d", name, MaxUniqueProductsPerOrder)
+	}
 )
 
 type OrderError struct {
@@ -77,14 +84,14 @@ func (order *Order) Value() float64 {
 // rather than adding it to the order
 func (order *Order) Add(product Product) error {
 	if !product.IsAvailable() {
-		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it is not available", product.name)}
+		return &OrderError{Err: ErrUnavailableProduct(product.name)}
 	}
 
 	order.productToCount[product.id] += 1
 
 	if order.productToCount[product.id] > MaxUniqueProductsPerOrder {
 		order.productToCount[product.id] -= 1
-		return &OrderError{Err: fmt.Errorf("product: %s cannot be added to the order as it exceeds the maximum allowed quantity per order, i.e., %d", product.name, MaxUniqueProductsPerOrder)}
+		return &OrderError{Err: ErrMaxAllowedQuantity(product.name)}
 	}
 
 	order.products = append(order.products, product)

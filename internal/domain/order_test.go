@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"errors"
 	"simple-order-service/internal/domain"
 	"testing"
 	"time"
@@ -119,6 +120,43 @@ func TestCreateOrderWithDispatchDate_Success(t *testing.T) {
 	got := order.SetDispatchDate(time.Now().Add(48 * time.Hour).Format(time.DateOnly))
 	var want error = nil
 	if got != want {
+		t.Errorf("Got: %v, Want: %v", got, want)
+	}
+}
+
+func TestAddProductToOrder_ProductUnavailable(t *testing.T) {
+	orderID := "123"
+	order := domain.NewOrder(orderID)
+	product1 := domain.NewProduct("1", "nike shoes", 100.0, 0, domain.Premium)
+	got := order.Add(product1)
+	want := domain.OrderError{Err: domain.ErrUnavailableProduct(product1.Name())}
+	var orderErr *domain.OrderError
+
+	if !errors.As(got, &orderErr) {
+		t.Errorf("Got: %v, Want: %v", got, orderErr)
+	}
+
+	if got.Error() != want.Error() {
+		t.Errorf("Got: %v, Want: %v", got, want)
+	}
+}
+
+func TestAddProductToOrder_MaxAllowedQuantityError(t *testing.T) {
+	orderID := "123"
+	order := domain.NewOrder(orderID)
+	product1 := domain.NewProduct("1", "nike shoes", 100.0, 11, domain.Premium)
+	for i := 1; i <= 10; i++ {
+		order.Add(product1)
+	}
+	got := order.Add(product1)
+	want := domain.OrderError{Err: domain.ErrMaxAllowedQuantity(product1.Name())}
+	var orderErr *domain.OrderError
+
+	if !errors.As(got, &orderErr) {
+		t.Errorf("Got: %v, Want: %v", got, orderErr)
+	}
+
+	if got.Error() != want.Error() {
 		t.Errorf("Got: %v, Want: %v", got, want)
 	}
 }

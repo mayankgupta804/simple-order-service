@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+//go:generate moq -out order_repository_mock.go . OrderRepository
+
 type OrderRepository interface {
 	Store(order Order) error
 	FindById(id string) Order

@@ -2,6 +2,8 @@ package domain
 
 import "encoding/json"
 
+//go:generate moq -out product_repository_mock.go . ProductRepository
+
 type ProductRepository interface {
 	Store(product Product) error
 	FindById(id string) Product
